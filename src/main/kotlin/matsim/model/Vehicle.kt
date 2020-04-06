@@ -3,7 +3,6 @@ package matsim.model
 import javax.swing.DropMode
 
 typealias Speed = Double
-typealias Lane = List<Node>
 
 data class Vehicle(
     val id: VehicleId = VehicleId(),

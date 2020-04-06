@@ -14,6 +14,8 @@ fun Lane.swapPart(part: Lane) : Lane  {
         idNodeMap[it.id] ?: it
     }
 }
+typealias Lane = List<Node>
+
 
 @ExperimentalContracts
 fun Any?.isNotNull() : Boolean {

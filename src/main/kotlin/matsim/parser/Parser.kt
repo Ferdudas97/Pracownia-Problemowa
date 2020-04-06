@@ -2,19 +2,8 @@ package matsim.parser
 
 import com.beust.klaxon.JsonArray
 import com.beust.klaxon.JsonObject
-import com.beust.klaxon.JsonReader
-import com.beust.klaxon.Klaxon
 import matsim.model.*
-import matsim.simulation.Simulation
-import org.w3c.dom.NamedNodeMap
-import java.awt.Point
-import java.io.File
 import kotlin.contracts.ExperimentalContracts
-import kotlin.contracts.contract
-import kotlin.math.atan2
-import kotlin.math.cos
-import kotlin.math.sin
-import kotlin.math.sqrt
 
 
 interface Parser<T> {
@@ -24,22 +13,18 @@ interface Parser<T> {
 const val simulationNodeLength = 2
 
 @ExperimentalContracts
-class OsmParser : Parser<List<Node>> {
+class OsmParser : Parser<List<List<Node>>> {
     private val idMappings = mutableMapOf<String, List<String>>()
-    override fun parse(path: String): List<Node> {
+    override fun parse(path: String): List<List<Node>> {
         val json = parseFile(path)!!
         val elements = json["elements"] as JsonArray<JsonObject>
         val osmNodeMap = elements.filter { it["type"] == "node" }
-            .map {
-                parseToNode(it)
-            }
+            .map { parseToNode(it) }
             .associateBy { it.id }
         val ways = elements.filter { it["type"] == "way" }
             .map { parseToWay(it, osmNodeMap) }
-        val r = ways.flatMap { createSimulationNodes(it) }
-            .flatten()
-            .map { it.toSimulationNode() }
-        return r
+
+        return ways.flatMap { createSimulationNodes(it) }
     }
 
     private fun parseFile(name: String): JsonObject? {
@@ -49,20 +34,27 @@ class OsmParser : Parser<List<Node>> {
         }
     }
 
-    private fun createSimulationNodes(way: Way) = way.nodes.zipWithNext()
+    private fun createSimulationNodes(way: Way): List<Lane> = way.nodes.zipWithNext()
         .flatMap { zipped ->
-            val nodeLanes = (0 until way.lanes)
-                .map { zipped.createNodesBetween(way.maxSpeed) }
-            if (way.lanes > 1) {
-                (0 until way.lanes).zipWithNext().onEach { lanePair ->
-                    val first = nodeLanes[lanePair.first]
-                    val second = nodeLanes[lanePair.second]
-                    connectLanes(first, second)
-                }
-            }
-            nodeLanes
+            createLinkBetweenNodes(zipped, way.maxSpeed, way.lanes)
         }
 
+    private fun createLinkBetweenNodes(
+        zipped: Pair<OsmNode, OsmNode>,
+        maxSpeed: Speed,
+        lanes: Int
+    ): List<Lane> {
+        val nodeLanes = (0 until lanes)
+            .map { zipped.createNodesBetween(maxSpeed) }
+        if (lanes > 1) {
+            (0 until lanes).zipWithNext().onEach { lanePair ->
+                val first = nodeLanes[lanePair.first]
+                val second = nodeLanes[lanePair.second]
+                connectLanes(first, second)
+            }
+        }
+        return nodeLanes.map { it.map { osmNode -> osmNode.toSimulationNode() } }
+    }
 
     private fun connectLanes(first: List<OsmNode>, second: List<OsmNode>) = first.zip(second).forEach { nodes ->
         nodes.first.neighbours[Direction.TOP] = nodes.second
