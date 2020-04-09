@@ -15,6 +15,8 @@ repositories {
 dependencies {
     implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk8"
     implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-core:1.3.5'
+//    implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.3.5'
+    implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-javafx:1.3.5'
     implementation 'com.beust:klaxon:5.2'
     implementation 'de.saring:leafletmap:1.0.5-SNAPSHOT'
     implementation 'no.tornado:tornadofx-controlsfx:0.1'

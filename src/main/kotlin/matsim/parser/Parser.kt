@@ -18,10 +18,16 @@ class OsmParser : Parser<List<List<Node>>> {
     override fun parse(path: String): List<List<Node>> {
         val json = parseFile(path)!!
         val elements = json["elements"] as JsonArray<JsonObject>
+        val test = elements.map { it.tag("highway") }
+
         val osmNodeMap = elements.filter { it["type"] == "node" }
+            .filter { it.tag("highway") != "street_lamp" }
+            .filter { it.tag("highway") != "footway" }
             .map { parseToNode(it) }
             .associateBy { it.id }
         val ways = elements.filter { it["type"] == "way" }
+            .filter { it.tag("highway") != "street_lamp" }
+            .filter { it.tag("highway") != "footway" }
             .map { parseToWay(it, osmNodeMap) }
 
         return ways.flatMap { createSimulationNodes(it) }
@@ -53,7 +59,7 @@ class OsmParser : Parser<List<List<Node>>> {
                 connectLanes(first, second)
             }
         }
-        return nodeLanes.map { it.map { osmNode -> osmNode.toSimulationNode() } }
+        return nodeLanes.map { it.map { osmNode -> osmNode.toSimulationNode() }.distinct() }
     }
 
     private fun connectLanes(first: List<OsmNode>, second: List<OsmNode>) = first.zip(second).forEach { nodes ->
@@ -94,7 +100,7 @@ class OsmParser : Parser<List<List<Node>>> {
             }
             totalNumber -> {
                 addIdMapping(second.id, newId)
-                second.copy(newId, maxSpeed = maxSpeed)
+                second.copy(id = newId, maxSpeed = maxSpeed)
             }
             else -> OsmNode(
                 id = newId,
@@ -117,7 +123,7 @@ class OsmParser : Parser<List<List<Node>>> {
     )
 
 
-    private fun JsonObject.tag(name: String) = obj("tags")?.string(name)
+    private fun JsonObject.tag(name: String) = this.obj("tags")?.string(name)
     private fun parseToWay(json: JsonObject, nodeMap: Map<String, OsmNode>) = Way(
         id = json.int("id")!!.toString(),
         nodes = json.array<Int>("nodes")!!.map { it.toString() }.mapNotNull { nodeMap[it] },
@@ -133,9 +139,19 @@ class OsmParser : Parser<List<List<Node>>> {
     private fun OsmNode.toBasicNode(maxSpeed: Speed) = BasicNode(id = NodeId(), x = lat, y = long, maxSpeed = maxSpeed)
     private fun OsmNode.toSimulationNode(): Node {
         if (isTrafficLight) {
-            return TrafficLightNode(id = NodeId(id), x = lat, y = long, maxSpeed = maxSpeed)
+            return TrafficLightNode(
+                id = NodeId(id),
+                x = lat,
+                y = long,
+                maxSpeed = maxSpeed,
+                neighborhood = neighbours.mapValues { NodeId(it.value.id) })
         } else {
-            return BasicNode(id = NodeId(id), x = lat, y = long, maxSpeed = maxSpeed)
+            return BasicNode(
+                id = NodeId(id),
+                x = lat,
+                y = long,
+                maxSpeed = maxSpeed,
+                neighborhood = neighbours.mapValues { NodeId(it.value.id) })
         }
     }
 }
