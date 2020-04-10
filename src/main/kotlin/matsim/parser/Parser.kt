@@ -59,17 +59,17 @@ class OsmParser : Parser<List<List<Node>>> {
                 connectLanes(first, second)
             }
         }
-        return nodeLanes.map { it.map { osmNode -> osmNode.toSimulationNode() }.distinct() }
+        return nodeLanes.map { it.distinct() }
     }
 
-    private fun connectLanes(first: List<OsmNode>, second: List<OsmNode>) = first.zip(second).forEach { nodes ->
-        nodes.first.neighbours[Direction.TOP] = nodes.second
-        nodes.second.neighbours[Direction.BOTTOM] = nodes.first
+    private fun connectLanes(first: List<Node>, second: List<Node>) = first.zip(second).forEach { nodes ->
+        nodes.first.neighborhood[Direction.TOP] = nodes.second
+        nodes.second.neighborhood[Direction.BOTTOM] = nodes.first
 
     }
 
 
-    private fun Pair<OsmNode, OsmNode>.createNodesBetween(maxSpeed: Speed): List<OsmNode> {
+    private fun Pair<OsmNode, OsmNode>.createNodesBetween(maxSpeed: Speed): List<Node> {
         val distance = first.computeDistance(second)
         val numberOfNodes = (distance / simulationNodeLength).toInt()
         val (deltaLat, deltaLon) = (first - second) / numberOfNodes
@@ -79,9 +79,9 @@ class OsmParser : Parser<List<List<Node>>> {
             }
             .zipWithNext()
             .onEach {
-                it.first.neighbours[Direction.RIGHT] = it.second
-                it.second.neighbours[Direction.LEFT] = it.first
-            }.fold(listOf<OsmNode>()) { acc, pair -> acc.plus(pair.first).plus(pair.second) }
+                it.first.neighborhood[Direction.RIGHT] = it.second
+                it.second.neighborhood[Direction.LEFT] = it.first
+            }.fold(listOf<Node>()) { acc, pair -> acc.plus(pair.first).plus(pair.second) }
             .toList()
     }
 
@@ -91,16 +91,16 @@ class OsmParser : Parser<List<List<Node>>> {
         maxSpeed: Speed,
         number: Int,
         totalNumber: Int
-    ): OsmNode {
+    ): Node {
         val newId = createId();
         return when (number) {
             0 -> {
                 addIdMapping(first.id, newId)
-                first.copy(id = newId, maxSpeed = maxSpeed)
+                first.copy(id = newId, maxSpeed = maxSpeed).toSimulationNode()
             }
             totalNumber -> {
                 addIdMapping(second.id, newId)
-                second.copy(id = newId, maxSpeed = maxSpeed)
+                second.copy(id = newId, maxSpeed = maxSpeed).toSimulationNode()
             }
             else -> OsmNode(
                 id = newId,
@@ -109,7 +109,7 @@ class OsmParser : Parser<List<List<Node>>> {
                 long = first.long + deltaLon * number,
                 isTrafficLight = false,
                 isCrossRoad = false
-            )
+            ).toSimulationNode()
         }
     }
 
@@ -143,15 +143,15 @@ class OsmParser : Parser<List<List<Node>>> {
                 id = NodeId(id),
                 x = lat,
                 y = long,
-                maxSpeed = maxSpeed,
-                neighborhood = neighbours.mapValues { NodeId(it.value.id) })
+                maxSpeed = maxSpeed
+            )
         } else {
             return BasicNode(
                 id = NodeId(id),
                 x = lat,
                 y = long,
-                maxSpeed = maxSpeed,
-                neighborhood = neighbours.mapValues { NodeId(it.value.id) })
+                maxSpeed = maxSpeed
+            )
         }
     }
 }

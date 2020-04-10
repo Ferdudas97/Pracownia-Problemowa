@@ -13,25 +13,51 @@ enum class Direction {
 sealed class Node {
     abstract val x: Coordinate
     abstract val y: Coordinate
-    abstract val neighborhood: Map<Direction, NodeId>
+    abstract val neighborhood: MutableMap<Direction, Node>
     abstract val maxSpeed: Speed
     abstract val id: NodeId;
 
-    abstract fun addNeighbour(direction: Direction, node: Node): Node
+    fun addNeighbour(direction: Direction, node: Node) {
+        neighborhood[direction] = node
+    }
 
+    override fun equals(other: Any?): Boolean {
 
+        return if (other is Node) {
+            (id == other.id).and(x == other.x).and(y == other.y)
+        } else {
+            false
+        }
+    }
+
+    override fun hashCode(): Int {
+        return id.hashCode() + x.hashCode() + y.hashCode()
+    }
+
+    override fun toString(): String {
+        return "Node(id=$id)"
+    }
 }
+
 inline class NodeId(val id: String = createId())
 
 data class BasicNode(
     override val id: NodeId,
     override val x: Coordinate,
     override val y: Coordinate,
-    override val neighborhood: Map<Direction, NodeId> = mapOf(),
+    override val neighborhood: MutableMap<Direction, Node> = mutableMapOf(),
     override val maxSpeed: Speed
 ) : Node() {
-    override fun addNeighbour(direction: Direction, node: Node): BasicNode {
-        return copy(neighborhood = neighborhood.plus(direction to node.id))
+    override fun equals(other: Any?): Boolean {
+        return super.equals(other)
+    }
+
+    override fun hashCode(): Int {
+        return super.hashCode()
+    }
+
+    override fun toString(): String {
+        return super.toString()
     }
 }
 
@@ -40,13 +66,20 @@ data class OccupiedNode(
     override val id: NodeId,
     override val x: Coordinate,
     override val y: Coordinate,
-    override val neighborhood: Map<Direction, NodeId>,
+    override val neighborhood: MutableMap<Direction, Node> = mutableMapOf(),
     override val maxSpeed: Speed
 ) : Node() {
-    override fun addNeighbour(direction: Direction, node: Node): OccupiedNode {
-        return copy(neighborhood = neighborhood.plus(direction to node.id))
+    override fun equals(other: Any?): Boolean {
+        return super.equals(other)
     }
 
+    override fun hashCode(): Int {
+        return super.hashCode()
+    }
+
+    override fun toString(): String {
+        return super.toString()
+    }
 }
 
 enum class TrafficPhase {
@@ -56,24 +89,44 @@ enum class TrafficPhase {
 
 data class TrafficLightNode(
     val phase: TrafficPhase = TrafficPhase.RED,
-    val phaseTime : Map<TrafficPhase,Duration> = mapOf(),
+    val phaseTime: Map<TrafficPhase, Duration> = mapOf(),
     override val x: Coordinate,
     override val y: Coordinate,
-    override val neighborhood: Map<Direction, NodeId> = mapOf(),
+    override val neighborhood: MutableMap<Direction, Node> = mutableMapOf(),
     override val maxSpeed: Speed,
     override val id: NodeId
-): Node() {
-    override fun addNeighbour(direction: Direction, node: Node): TrafficLightNode {
-        return copy(neighborhood = neighborhood.plus(direction to node.id))
+) : Node() {
+    override fun equals(other: Any?): Boolean {
+        return super.equals(other)
+    }
+
+    override fun hashCode(): Int {
+        return super.hashCode()
+    }
+
+    override fun toString(): String {
+        return super.toString()
     }
 
 }
 
 fun Node.occupyBy(vehicle: Vehicle): OccupiedNode {
-    return OccupiedNode(vehicle,id, x, y, neighborhood, maxSpeed)
+    return OccupiedNode(vehicle, id, x, y, neighborhood, maxSpeed)
 }
 
 fun OccupiedNode.release(): BasicNode {
-    return BasicNode(id,x, y, neighborhood, maxSpeed)
+    return BasicNode(id, x, y, neighborhood, maxSpeed)
 }
 
+
+fun Direction.getPossibleDirections() = when (this) {
+    Direction.LEFT, Direction.RIGHT -> setOf(Direction.BOTTOM, Direction.TOP, this)
+    Direction.TOP, Direction.BOTTOM -> setOf(Direction.RIGHT, Direction.LEFT, this)
+}
+
+fun Direction.opposite() = when (this) {
+    Direction.TOP -> Direction.BOTTOM
+    Direction.LEFT -> Direction.RIGHT
+    Direction.BOTTOM -> Direction.TOP
+    Direction.RIGHT -> Direction.LEFT
+}
