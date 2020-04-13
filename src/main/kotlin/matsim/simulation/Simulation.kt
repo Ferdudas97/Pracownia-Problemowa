@@ -2,6 +2,7 @@ package matsim.simulation
 
 import kotlinx.coroutines.channels.SendChannel
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
 import matsim.model.*
 import matsim.simulation.events.Event
@@ -24,10 +25,12 @@ class NSSimulation(private val config: SimulationConfig, private val resultRecei
             val cars = createCars(config.carNumber)
             nodeList = cars + nodeList
             repeat(config.steps) {
+                delay(500)
                 val result = nodeList.asFlow()
                     .filterIsInstance<OccupiedNode>()
                     .map { it.vehicle to createAnalyzableArea(it) }
                     .map { it.first.move(it.second) }
+                    .buffer()
                     .onEach { resultReceiverActor.send(Event.Vehicle.Moved(it)) }
                     .toSet()
 

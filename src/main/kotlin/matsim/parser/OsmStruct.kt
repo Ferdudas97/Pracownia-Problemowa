@@ -1,6 +1,7 @@
 package matsim.parser
 
-import matsim.model.*
+import matsim.model.Direction
+import matsim.model.Speed
 import kotlin.math.atan2
 import kotlin.math.cos
 import kotlin.math.sin
@@ -15,7 +16,8 @@ data class OsmNode(
     val isCrossRoad: Boolean,
     val isTrafficLight: Boolean,
     val neighbours: MutableMap<Direction, OsmNode> = mutableMapOf(),
-    val maxSpeed: Speed = 70.0
+    val maxSpeed: Speed = 70.0,
+    val wayId: String = "none"
 ) {
     private fun Double.toRadians() = Math.toRadians(this)
     fun computeDistance(other: OsmNode): Double {
@@ -36,6 +38,7 @@ data class OsmNode(
 
     operator fun minus(other: OsmNode) = (lat - other.lat) to (long - other.long)
 
+    operator fun div(o: Double) = lat / o to long / o
     override fun toString(): String {
         return id
     }
@@ -51,7 +54,14 @@ data class OsmNode(
     }
 }
 
-data class Way(val id: String, val nodes: List<OsmNode>, val maxSpeed: Speed, val lanes: Int = 1) {
+data class OsmWay(
+    val id: String,
+    val nodes: List<OsmNode>,
+    val maxSpeed: Speed,
+    val lanes: Int = 1,
+    val oneWay: Boolean = false,
+    val secondary: Boolean = false
+) {
     fun length(): Double {
         return nodes.first().computeDistance(nodes.last())
     }

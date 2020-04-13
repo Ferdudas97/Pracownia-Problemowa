@@ -1,5 +1,6 @@
 package matsim.model
 
+import java.math.RoundingMode
 import java.util.*
 import kotlin.contracts.ExperimentalContracts
 import kotlin.contracts.contract
@@ -16,9 +17,11 @@ fun Lane.swapPart(part: Lane) : Lane  {
 }
 typealias Lane = List<Node>
 
+fun <A, B> Pair<A, B>.reverse(): Pair<B, A> = second to first
 
+fun Double.round(scale: Int = 7) = toBigDecimal().setScale(scale, RoundingMode.UP).toDouble()
 @ExperimentalContracts
-fun Any?.isNotNull() : Boolean {
+fun Any?.isNotNull(): Boolean {
     contract {
         returns(true) implies (this@isNotNull != null)
 
