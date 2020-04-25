@@ -10,16 +10,17 @@ data class Vehicle(
     val currentSpeed: Speed = 0.0,
     val maxSpeed: Speed = 5.0,
     val acceleration: Speed = 1.0,
-    val destinationNodes: List<NodeId> = listOf(),
+    val lastNodes: MutableList<NodeId> = mutableListOf(),
     val movementDirection: Direction
 ) {
     fun move(analyzableArea: AnalyzableArea): OccupiedNode {
-        if (Random.nextDouble(0.0, 1.0) < 0.5) {
+        if (Random.nextDouble(0.0, 1.0) < 12) {
             val (fastestSpeed, fastestDirection) = findFastestAreaDirection(analyzableArea)
             val chosenLane = analyzableArea.nodesByDirection(fastestDirection)
             val updatedVehicle = copy(currentSpeed = fastestSpeed)
             val newOccupiedNode =
                 chosenLane.getOrNull(min(fastestSpeed.toInt() - 1, chosenLane.size - 1)) ?: analyzableArea.currentNode
+            addToLastNodes(newOccupiedNode)
             return newOccupiedNode.occupyBy(updatedVehicle)
         } else {
             val selectedDirection =
@@ -28,21 +29,33 @@ data class Vehicle(
             val speed = lane.computeAvailableSpeed()
             val updatedVehicle = copy(currentSpeed = speed)
             val newOccupiedNode = lane.getOrNull(speed.toInt() - 1) ?: analyzableArea.currentNode
+            addToLastNodes(newOccupiedNode)
             return newOccupiedNode.occupyBy(updatedVehicle)
         }
 
+    }
+
+    private fun addToLastNodes(node: Node) {
+        if (lastNodes.size < 10) {
+            lastNodes.add(node.id)
+        } else {
+            lastNodes.removeAt(0)
+            lastNodes.add(node.id)
+        }
     }
 
     private fun findFastestAreaDirection(analyzableArea: AnalyzableArea): Pair<Speed, Direction> {
 
         return movementDirection.getPossibleDirections()
             .map { analyzableArea.nodesByDirection(it) to it }
+            .filter { it.first.isNotVisited() }
             .map {
                 it.first.computeAvailableSpeed() to it.second
             }
             .maxBy { it.first } ?: 0.0 to movementDirection
     }
 
+    private fun List<Node>.isNotVisited() = map(Node::id).intersect(lastNodes).isEmpty()
     private fun List<Node>.availableDistance() =
         mapIndexed { index, node -> if (node is OccupiedNode) index else size - 1 }.max() ?: size - 1
 
@@ -55,7 +68,19 @@ data class Vehicle(
 }
 
 data class AnalyzableArea(private val nodeMap: Map<Direction, Lane>, val currentNode: OccupiedNode) {
-    fun nodesByDirection(direction: Direction) = nodeMap[direction] ?: emptyList()
+    fun nodesByDirection(direction: Direction): List<Node> {
+        val nodes = nodeMap[direction] ?: emptyList()
+        val delta = currentNode.maxSpeed - nodes.size
+        return if (delta > 0 && nodes.isNotEmpty()) {
+            val last = nodes.last()
+            val new = last.iterate(delta.toInt())
+            nodes.plus(new)
+
+        } else {
+            nodes
+        }
+    }
+
     fun changeLane(direction: Direction, lane: Lane): AnalyzableArea {
         val newMap = nodeMap.filterKeys { it != direction }.plus(direction to lane)
         return copy(nodeMap = newMap)

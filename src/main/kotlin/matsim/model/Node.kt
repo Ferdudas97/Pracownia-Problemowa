@@ -23,6 +23,24 @@ sealed class Node {
         neighborhood[direction] = node
     }
 
+    fun iterate(i: Int): List<Node> {
+        var node = this
+        val result = mutableListOf<Node>()
+        result.add(this)
+        return runCatching {
+            while (result.size < i) {
+                if (neighborhood[Direction.RIGHT] != null) {
+                    node = neighborhood[Direction.RIGHT]!!
+                    result.add(node)
+                } else {
+                    node = neighborhood.filterKeys { it != Direction.LEFT }.values.random()
+                    result.add(node)
+                }
+            }
+            result
+        }.getOrDefault(result)
+    }
+
     override fun equals(other: Any?): Boolean {
 
         return if (other is Node) {
@@ -90,7 +108,7 @@ enum class TrafficPhase {
 
 
 data class TrafficLightNode(
-    val phase: TrafficPhase = TrafficPhase.RED,
+    val phase: TrafficPhase = TrafficPhase.GREEN,
     val phaseTime: Map<TrafficPhase, Duration> = mapOf(),
     override val x: Coordinate,
     override val y: Coordinate,
@@ -124,25 +142,39 @@ data class ConnectorNode(
 }
 
 @ExperimentalContracts
-data class Connector(val nodeId: String = NodeId().id, val connections: List<Node> = listOf()) {
-    fun addConnection(node: Node): Connector = copy(connections = connections.plus(node))
+class Connector() {
+    private val connectionsMap = mutableMapOf<String, List<Node>>()
+    fun addConnection(id: String, node: Node) {
+        connectionsMap[id] = connectionsMap.getOrDefault(id, listOf()).plus(node)
+    }
+
     fun connect() {
-        connections.forEach { node ->
-            val new = Direction.values().filter { !node.neighborhood.containsKey(it) }
-                .associateWith { dir ->
-                    connections.shuffled().find {
-                        it != node && it.wayId != node.wayId
-//                                && !it.neighborhood.containsKey()
-                    }
-                }
-                .filterValues { it != null }.mapValues { it.value!! }
-            node.neighborhood.putAll(new)
-            new.filter { it.value.neighborhood[it.key.opposite()] == null }
-                .forEach { it.value.neighborhood[it.key.opposite()] = node }
-        }
+        connectionsMap.values.filter { it.size > 1 }.forEach(this::connect)
 
     }
+
+    private fun connect(connections: List<Node>) = connections.onEach {
+        if (connections.size > 2) {
+            it.neighborhood.remove(Direction.BOTTOM)
+            it.neighborhood.remove(Direction.TOP)
+        }
+    }.forEach { node ->
+        val new = Direction.values().filter { !node.neighborhood.containsKey(it) }.map { dir ->
+            dir to connections.shuffled().find {
+                it != node && it.wayId != node.wayId
+                        && !it.neighborhood.containsKey(dir.opposite())
+            }
+        }.associate { it }.filterValues { it != null }.mapValues { it.value!! }
+
+        new.filter { it.value.neighborhood[it.key.opposite()] == null }
+            .forEach {
+                it.value.neighborhood[it.key.opposite()] = node
+                node.neighborhood[it.key] = it.value
+            }
+    }
+
 }
+
 
 data class Way(
     val id: String,

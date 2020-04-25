@@ -15,8 +15,7 @@ const val simulationNodeLength = 7
 
 @ExperimentalContracts
 class OsmParser : Parser<List<Way>> {
-    private val idMappings = mutableMapOf<String, List<String>>()
-    private val connectors = mutableMapOf<String, Connector>()
+    private val connector = Connector()
     private val prohibitedHighways =
         setOf(
             "street_lamp",
@@ -44,7 +43,7 @@ class OsmParser : Parser<List<Way>> {
             .filter { it.tag("man_made") != "bridge" || it.tag("area:highway") == null }
             .map { parseToWay(it, osmNodeMap) }
         return ways.map { createSimulationNodes(it) }.also {
-            connectors.values.forEach(Connector::connect)
+            connector.connect()
             println("Done")
         }
     }
@@ -60,11 +59,13 @@ class OsmParser : Parser<List<Way>> {
     }
 
     private fun createSimulationNodes(way: OsmWay): Way {
-        val lanes = if (!way.oneWay) way.lanes / 2 else way.lanes
+//        val lanes = if (!way.oneWay) way.lanes / 2 else way.lanes
+        val lanes = 1
         var oneWay = way.nodes.zipWithNext()
             .flatMap { zipped ->
-                createLinkBetweenNodes(zipped, way.maxSpeed, way.id, 1)
+                createLinkBetweenNodes(zipped, way.maxSpeed, way.id, lanes)
             }
+        //TODO
         oneWay = oneWay.mapIndexed { index, list ->
             if (index > 0) {
                 val last = oneWay[index - 1].last()
@@ -76,22 +77,22 @@ class OsmParser : Parser<List<Way>> {
                 list.drop(1)
             } else list
         }
-//        var twoWay = if (!way.oneWay) way.nodes.reversed().zipWithNext()
-//            .flatMap { zipped ->
-//                createLinkBetweenNodes(zipped, way.maxSpeed, way.id + "", way.lanes)
-//            } else emptyList()
-//        twoWay =  twoWay.mapIndexed { index, list ->
-//            if (index> 0) {
-//                val last = twoWay[index-1].last()
-//                val next = list.first()
-//                last.neighborhood.putAll(next.neighborhood)
-//                next.neighborhood.forEach {
-//                    it.value.neighborhood[it.key.opposite()] = last
-//                }
-//                list.drop(1)
-//            } else list
-//        }
-        return Way(way.id, oneWay, emptyList())
+        var twoWay = if (!way.oneWay) way.nodes.reversed().zipWithNext()
+            .flatMap { zipped ->
+                createLinkBetweenNodes(zipped, way.maxSpeed, way.id, lanes)
+            } else emptyList()
+        twoWay = twoWay.mapIndexed { index, list ->
+            if (index > 0) {
+                val last = twoWay[index - 1].last()
+                val next = list.first()
+                last.neighborhood.putAll(next.neighborhood)
+                next.neighborhood.forEach {
+                    it.value.neighborhood[it.key.opposite()] = last
+                }
+                list.drop(1)
+            } else list
+        }
+        return Way(way.id, oneWay, twoWay)
     }
 
     private fun createLinkBetweenNodes(
@@ -148,13 +149,13 @@ class OsmParser : Parser<List<Way>> {
         return when (number) {
             0 -> {
                 val node = first.copy(id = "${first.id}__$newId", maxSpeed = maxSpeed, wayId = wayId).toSimulationNode()
-                connectors[first.id] = connectors.getOrDefault(first.id, Connector(first.id)).addConnection(node)
+                connector.addConnection(first.id, node)
                 node
             }
             totalNumber -> {
                 val node =
                     second.copy(id = "${second.id}__$newId", maxSpeed = maxSpeed, wayId = wayId).toSimulationNode()
-                connectors[second.id] = connectors.getOrDefault(second.id, Connector(second.id)).addConnection(node)
+                connector.addConnection(second.id, node)
                 node
             }
             else -> OsmNode(
@@ -183,16 +184,11 @@ class OsmParser : Parser<List<Way>> {
     private fun parseToWay(json: JsonObject, nodeMap: Map<String, OsmNode>) = OsmWay(
         id = json.long("id")!!.toString(),
         nodes = json.array<Long>("nodes")!!.map { it.toString() }.mapNotNull { nodeMap[it] },
-        maxSpeed = json.tag("maxspeed")?.toDouble() ?: 70.0,
+        maxSpeed = json.tag("maxspeed")?.toDouble() ?: 70.0 / 10,
         lanes = json.tag("lanes")?.toInt() ?: 1,
-        oneWay = json.tag("oneway") != null,
+        oneWay = json.tag("oneway") != null || json.tag("oneway") == "yes",
         secondary = json.tag("highway") == "secondary"
     )
-
-    private fun addIdMapping(old: String, new: String) {
-        idMappings[old] = idMappings.getOrDefault(old, mutableListOf()).plus(new)
-    }
-
 
     private fun OsmNode.toSimulationNode(): Node {
         if (isTrafficLight) {
