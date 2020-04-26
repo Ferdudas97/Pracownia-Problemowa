@@ -24,7 +24,7 @@ sealed class Node {
     }
 
     fun iterate(i: Int): List<Node> {
-        var node = this
+        var node: Node
         val result = mutableListOf<Node>()
         result.add(this)
         return runCatching {
@@ -33,7 +33,9 @@ sealed class Node {
                     node = neighborhood[Direction.RIGHT]!!
                     result.add(node)
                 } else {
-                    node = neighborhood.filterKeys { it != Direction.LEFT }.values.random()
+                    node =
+                        neighborhood.filter { it.key != Direction.LEFT && it.value.neighborhood[Direction.RIGHT] != null }
+                            .values.random()
                     result.add(node)
                 }
             }
@@ -153,12 +155,10 @@ class Connector() {
 
     }
 
-    private fun connect(connections: List<Node>) = connections.onEach {
-        if (connections.size > 2) {
-            it.neighborhood.remove(Direction.BOTTOM)
-            it.neighborhood.remove(Direction.TOP)
+    private fun connect(connections: List<Node>) = connections.forEach { node ->
+        if (node.id.id.contains("1636298237")) {
+            ""
         }
-    }.forEach { node ->
         val new = Direction.values().filter { !node.neighborhood.containsKey(it) }.map { dir ->
             dir to connections.shuffled().find {
                 it != node && it.wayId != node.wayId

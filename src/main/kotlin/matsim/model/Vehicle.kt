@@ -14,7 +14,7 @@ data class Vehicle(
     val movementDirection: Direction
 ) {
     fun move(analyzableArea: AnalyzableArea): OccupiedNode {
-        if (Random.nextDouble(0.0, 1.0) < 12) {
+        if (Random.nextDouble(0.0, 1.0) < 0.8) {
             val (fastestSpeed, fastestDirection) = findFastestAreaDirection(analyzableArea)
             val chosenLane = analyzableArea.nodesByDirection(fastestDirection)
             val updatedVehicle = copy(currentSpeed = fastestSpeed)

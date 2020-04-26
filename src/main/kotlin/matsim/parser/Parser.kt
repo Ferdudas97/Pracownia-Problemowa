@@ -59,41 +59,42 @@ class OsmParser : Parser<List<Way>> {
     }
 
     private fun createSimulationNodes(way: OsmWay): Way {
-//        val lanes = if (!way.oneWay) way.lanes / 2 else way.lanes
-        val lanes = 1
-        var oneWay = way.nodes.zipWithNext()
-            .flatMap { zipped ->
-                createLinkBetweenNodes(zipped, way.maxSpeed, way.id, lanes)
-            }
-        //TODO
-        oneWay = oneWay.mapIndexed { index, list ->
-            if (index > 0) {
-                val last = oneWay[index - 1].last()
-                val next = list.first()
-                last.neighborhood.putAll(next.neighborhood)
-                next.neighborhood.forEach {
-                    it.value.neighborhood[it.key.opposite()] = last
-                }
-                list.drop(1)
-            } else list
-        }
-        var twoWay = if (!way.oneWay) way.nodes.reversed().zipWithNext()
-            .flatMap { zipped ->
-                createLinkBetweenNodes(zipped, way.maxSpeed, way.id, lanes)
-            } else emptyList()
-        twoWay = twoWay.mapIndexed { index, list ->
-            if (index > 0) {
-                val last = twoWay[index - 1].last()
-                val next = list.first()
-                last.neighborhood.putAll(next.neighborhood)
-                next.neighborhood.forEach {
-                    it.value.neighborhood[it.key.opposite()] = last
-                }
-                list.drop(1)
-            } else list
-        }
+        val lanes = if (!way.oneWay) max(way.lanes / 2, 1) else way.lanes
+//        val lanes = 1
+        val oneWay = way.nodes
+            .createLinkBetweenNodes(way, lanes)
+        val twoWay = if (!way.oneWay) way.nodes.reversed().createLinkBetweenNodes(way, lanes) else emptyList()
         return Way(way.id, oneWay, twoWay)
     }
+
+    private fun List<OsmNode>.createLinkBetweenNodes(way: OsmWay, lanes: Int) = this.zipWithNext()
+        .flatMap { zipped ->
+            createLinkBetweenNodes(zipped, way.maxSpeed, way.id, lanes)
+        }.merge(lanes)
+
+    private fun List<Lane>.merge(lanes: Int): List<Lane> {
+        val chunked = this.chunked(lanes)
+        return chunked.mapIndexed { index, l ->
+            if (index > 0) {
+                merge(chunked[index - 1], chunked[index])
+            } else l.flatten()
+        }
+    }
+
+    private fun merge(prev: List<Lane>, current: List<Lane>): List<Node> =
+        (prev.indices).map { prev[it] to current[it] }
+            .flatMap { pair ->
+                val last = pair.first.last()
+                val next = pair.second.first()
+                last.neighborhood.putAll(next.neighborhood)
+                next.neighborhood.forEach {
+                    it.value.neighborhood[it.key.opposite()] = last
+                }
+                if (pair.second.size > 1) {
+                    pair.second.drop(1)
+                } else pair.second
+            }.distinct()
+
 
     private fun createLinkBetweenNodes(
         zipped: Pair<OsmNode, OsmNode>,
@@ -125,7 +126,7 @@ class OsmParser : Parser<List<Way>> {
         val distance = first.computeDistance(second)
         val numberOfNodes = max((distance / simulationNodeLength).toInt(), 1)
         val (deltaLat, deltaLon) = (second - first) / numberOfNodes
-        return (0..numberOfNodes).asSequence()
+        val res = (0..numberOfNodes).asSequence()
             .map {
                 createNodesBetween(deltaLat, deltaLon, maxSpeed, it, numberOfNodes, wayId)
             }
@@ -133,8 +134,8 @@ class OsmParser : Parser<List<Way>> {
             .onEach {
                 it.first.neighborhood[Direction.RIGHT] = it.second
                 it.second.neighborhood[Direction.LEFT] = it.first
-            }.fold(listOf<Node>()) { acc, pair -> acc.plus(pair.first).plus(pair.second) }
-            .toList()
+            }.fold(listOf<Node>()) { acc, pair -> acc.plus(pair.first).plus(pair.second) }.distinct()
+        return res
     }
 
     private fun Pair<OsmNode, OsmNode>.createNodesBetween(

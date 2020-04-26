@@ -48,7 +48,7 @@ class SimMapView : View("My View") {
 
                                 val nodesList = nodes.flatMapMerge { it.asFlow() }
                                     .toList()
-                                val simulation = SimulationConfig(nodesList, 300, 1)
+                                val simulation = SimulationConfig(nodesList, 300, 10)
                                 val viewActor = simulationViewActor(mapView)
                                 withContext(Dispatchers.IO) {
                                     NSSimulation(simulation, viewActor).start()
@@ -76,7 +76,7 @@ class SimMapView : View("My View") {
                     putMarker()
                 }
                 is Event.Vehicle.Moved -> msg.occupiedNode.apply {
-                    println("lat = $x long = $y id= $id")
+                    println("lat = $x long = $y id= $id vehicle = ${vehicle.id.value}")
                     map.moveMarker(markerMap[vehicle.id]!!, LatLong(x, y))
                 }
             }
