@@ -2,7 +2,6 @@ package matsim.model
 
 import matsim.parser.earthRadius
 import matsim.parser.toRadians
-import java.time.Duration
 import kotlin.contracts.ExperimentalContracts
 import kotlin.math.atan2
 import kotlin.math.cos
@@ -123,13 +122,19 @@ data class OccupiedNode(
 }
 
 enum class TrafficPhase {
-    GREEN, RED
+    GREEN, RED;
+
+    fun opposite(): TrafficPhase = when (this) {
+        GREEN -> RED
+        RED -> GREEN
+    }
 }
+
 
 
 data class TrafficLightNode(
     val phase: TrafficPhase = TrafficPhase.GREEN,
-    val phaseTime: Map<TrafficPhase, Duration> = mapOf(),
+    val phaseTime: Map<TrafficPhase, Int> = mapOf(),
     override val x: Coordinate,
     override val y: Coordinate,
     override val neighborhood: MutableMap<Direction, Node> = mutableMapOf(),
@@ -147,6 +152,12 @@ data class TrafficLightNode(
     override fun toString(): String {
         return super.toString()
     }
+
+    fun changePhase(step: Int): TrafficLightNode = phaseTime[phase]?.let {
+        if (step % it == 0) {
+            copy(phase = phase.opposite())
+        } else this
+    } ?: this
 
 }
 

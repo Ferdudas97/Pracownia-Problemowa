@@ -24,7 +24,7 @@ class NSSimulation(private val config: SimulationConfig, private val resultRecei
         coroutineScope {
             val cars = createCars(config.carNumber)
             nodeList = cars + nodeList
-            repeat(config.steps) {
+            repeat(config.steps) { step ->
                 delay(500)
                 val result = nodeList.asFlow()
                     .filterIsInstance<OccupiedNode>()
@@ -35,7 +35,8 @@ class NSSimulation(private val config: SimulationConfig, private val resultRecei
                     .toSet()
 
                 nodeList = result + nodeList.filterIsInstance(OccupiedNode::class.java)
-                    .map(OccupiedNode::release) + nodeList
+                    .map(OccupiedNode::release) +
+                        nodeList.filterIsInstance(TrafficLightNode::class.java).map { it.changePhase(step) } + nodeList
             }
         }
     }

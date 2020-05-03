@@ -63,7 +63,14 @@ data class Vehicle(
 
     private fun List<Node>.isNotVisited() = map(Node::id).intersect(lastNodes).isEmpty()
     private fun List<Node>.availableDistance() =
-        mapIndexed { index, node -> if (node is OccupiedNode) index else size - 1 }.max() ?: size - 1
+        mapIndexed { index, node ->
+            when (node) {
+                is OccupiedNode -> index
+                is TrafficLightNode -> if (node.phase == TrafficPhase.RED) index else size - 1
+                else -> size - 1
+            }
+        }
+            .max() ?: size - 1
 
     private fun List<Node>.computeAvailableSpeed(): Speed = if (this.isEmpty()) 0.0 else listOf(
         currentSpeed + acceleration,
