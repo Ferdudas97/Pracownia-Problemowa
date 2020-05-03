@@ -18,6 +18,7 @@ import kotlin.contracts.ExperimentalContracts
 class SimMapView : View("My View") {
     private val parser = OsmParser()
     private val mapView = LeafletMapView()
+    private val viewModel: SimViewModel by inject()
 
     override val root = borderpane() {
         val cfMapLoadState = mapView.displayMap(
@@ -37,6 +38,12 @@ class SimMapView : View("My View") {
 
         left {
             vbox {
+                label("Simulation Steps")
+                textfield(viewModel.stepsNumber)
+                separator()
+                label("Car Number")
+                textfield(viewModel.carNumber)
+                separator()
                 button("Start") {
                     action {
                         GlobalScope.launch(Dispatchers.Main) {
@@ -48,7 +55,7 @@ class SimMapView : View("My View") {
 
                                 val nodesList = nodes.flatMapMerge { it.asFlow() }
                                     .toList()
-                                val simulation = SimulationConfig(nodesList, 300, 10)
+                                val simulation = SimulationConfig(nodesList, 300, 3)
                                 val viewActor = simulationViewActor(mapView)
                                 withContext(Dispatchers.IO) {
                                     NSSimulation(simulation, viewActor).start()

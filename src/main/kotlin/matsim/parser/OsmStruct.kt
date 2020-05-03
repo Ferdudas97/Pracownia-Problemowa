@@ -7,7 +7,8 @@ import kotlin.math.cos
 import kotlin.math.sin
 import kotlin.math.sqrt
 
-private const val earthRadius: Long = 6371 * 1000 //earth radius in kilometers
+const val earthRadius: Long = 6371 * 1000 //earth radius in kilometers
+fun Double.toRadians() = Math.toRadians(this)
 
 data class OsmNode(
     val id: String,
@@ -19,7 +20,6 @@ data class OsmNode(
     val maxSpeed: Speed = 70.0,
     val wayId: String = "none"
 ) {
-    private fun Double.toRadians() = Math.toRadians(this)
     fun computeDistance(other: OsmNode): Double {
         // algorithm from https://www.movable-type.co.uk/scripts/latlong.html
         val latInRadians = lat.toRadians()

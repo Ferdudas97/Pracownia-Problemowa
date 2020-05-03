@@ -1,7 +1,13 @@
 package matsim.model
 
+import matsim.parser.earthRadius
+import matsim.parser.toRadians
 import java.time.Duration
 import kotlin.contracts.ExperimentalContracts
+import kotlin.math.atan2
+import kotlin.math.cos
+import kotlin.math.sin
+import kotlin.math.sqrt
 
 
 typealias Coordinate = Double
@@ -19,8 +25,20 @@ sealed class Node {
     abstract val id: NodeId;
     abstract val wayId: String
 
-    fun addNeighbour(direction: Direction, node: Node) {
-        neighborhood[direction] = node
+    fun computeDistance(other: Node): Double {
+        // algorithm from https://www.movable-type.co.uk/scripts/latlong.html
+        val latInRadians = x.toRadians()
+        val longInRadians = y.toRadians()
+        val otherLatInRadians = other.x.toRadians()
+        val otherLongInRadians = other.y.toRadians()
+        val latDelta = latInRadians - otherLatInRadians
+        val longDelta = longInRadians - otherLongInRadians
+        val a =
+            sin(latDelta / 2) * sin(latDelta / 2) + cos(latInRadians) * cos(otherLatInRadians) * sin(longDelta / 2) * sin(
+                longDelta / 2
+            )
+        val c = 2 * atan2(sqrt(a), sqrt(1 - a))
+        return earthRadius * c
     }
 
     fun iterate(i: Int): List<Node> {

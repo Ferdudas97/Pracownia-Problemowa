@@ -10,6 +10,7 @@ data class Vehicle(
     val currentSpeed: Speed = 0.0,
     val maxSpeed: Speed = 5.0,
     val acceleration: Speed = 1.0,
+    val destination: Node,
     val lastNodes: MutableList<NodeId> = mutableListOf(),
     val movementDirection: Direction
 ) {
@@ -44,11 +45,16 @@ data class Vehicle(
         }
     }
 
-    private fun findFastestAreaDirection(analyzableArea: AnalyzableArea): Pair<Speed, Direction> {
+    private fun Node.distanceToDestination() = destination.computeDistance(this)
 
-        return movementDirection.getPossibleDirections()
+    private fun findFastestAreaDirection(analyzableArea: AnalyzableArea): Pair<Speed, Direction> {
+        val possibleLanes = movementDirection.getPossibleDirections()
             .map { analyzableArea.nodesByDirection(it) to it }
+            .filter { it.first.isNotEmpty() }
             .filter { it.first.isNotVisited() }
+        val lanesWithMinDistance = possibleLanes.groupBy { it.first.last().distanceToDestination() }
+            .minBy { it.key }?.value ?: emptyList()
+        return lanesWithMinDistance
             .map {
                 it.first.computeAvailableSpeed() to it.second
             }
@@ -59,7 +65,7 @@ data class Vehicle(
     private fun List<Node>.availableDistance() =
         mapIndexed { index, node -> if (node is OccupiedNode) index else size - 1 }.max() ?: size - 1
 
-    fun List<Node>.computeAvailableSpeed(): Speed = if (this.isEmpty()) 0.0 else listOf(
+    private fun List<Node>.computeAvailableSpeed(): Speed = if (this.isEmpty()) 0.0 else listOf(
         currentSpeed + acceleration,
         maxSpeed,
         first().maxSpeed,
@@ -86,7 +92,6 @@ data class AnalyzableArea(private val nodeMap: Map<Direction, Lane>, val current
         return copy(nodeMap = newMap)
     }
 }
-
 
 inline class VehicleId(val value: String = createId())
 

@@ -43,7 +43,7 @@ class NSSimulation(private val config: SimulationConfig, private val resultRecei
     private suspend fun createCars(number: Int): Set<OccupiedNode> = nodeList.shuffled()
         .asFlow()
         .take(number)
-        .map { it.occupyBy(Vehicle(movementDirection = Direction.RIGHT)) }
+        .map { it.occupyBy(Vehicle(movementDirection = Direction.RIGHT, destination = nodeList.random())) }
         .onEach { resultReceiverActor.send(Event.Vehicle.Created(it)) }
         .toSet()
 
