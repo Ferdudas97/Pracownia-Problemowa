@@ -55,7 +55,7 @@ class SimMapView : View("My View") {
 
                                 val nodesList = nodes.flatMapMerge { it.asFlow() }
                                     .toList()
-                                val simulation = SimulationConfig(nodesList, 300, 3)
+                                val simulation = SimulationConfig(nodesList, 300, 1)
                                 val viewActor = simulationViewActor(mapView)
                                 withContext(Dispatchers.IO) {
                                     NSSimulation(simulation, viewActor).start()

@@ -86,7 +86,7 @@ data class AnalyzableArea(private val nodeMap: Map<Direction, Lane>, val current
         val delta = currentNode.maxSpeed - nodes.size
         return if (delta > 0 && nodes.isNotEmpty()) {
             val last = nodes.last()
-            val new = last.iterate(delta.toInt())
+            val new = last.getNeighboursInDirection(delta.toInt())
             nodes.plus(new)
 
         } else {

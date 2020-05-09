@@ -56,24 +56,10 @@ class NSSimulation(private val config: SimulationConfig, private val resultRecei
         val map = directions.associateWith {
             occupiedNode
                 .neighborhood[it]
-                .getNeighboursInDirection(direction, areaSize)
+                ?.getNeighboursInDirection(areaSize) ?: emptyList()
         }
         return AnalyzableArea(map, occupiedNode)
     }
-
-    private fun Node?.getNeighboursInDirection(direction: Direction, number: Int): List<Node> {
-        val list = mutableListOf<Node>()
-        var node = this
-        repeat(number) {
-            if (node != null) {
-                list.add(node!!)
-                node = node?.neighborhood?.get(direction)
-            }
-
-        }
-        return list
-    }
-
 
     override suspend fun stop() {
         TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
