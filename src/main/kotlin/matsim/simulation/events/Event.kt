@@ -7,6 +7,7 @@ sealed class Event {
     sealed class Simulation : Event() {
         object Started : Simulation()
         object Finished : Simulation()
+        data class StepDone(val step: Int, val time: Long) : Simulation()
     }
 
     sealed class Vehicle : Event() {

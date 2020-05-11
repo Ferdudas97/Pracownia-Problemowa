@@ -1,9 +1,12 @@
 package matsim.view
 
 import de.saring.leafletmap.*
-import kotlinx.coroutines.*
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.channels.actor
 import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.launch
 import matsim.model.Node
 import matsim.model.OccupiedNode
 import matsim.model.VehicleId
@@ -55,9 +58,9 @@ class SimMapView : View("My View") {
 
                                 val nodesList = nodes.flatMapMerge { it.asFlow() }
                                     .toList()
-                                val simulation = SimulationConfig(nodesList, 300, 1)
+                                val simulation = SimulationConfig(nodesList, 300, 25000)
                                 val viewActor = simulationViewActor(mapView)
-                                withContext(Dispatchers.IO) {
+                                launch(Dispatchers.IO) {
                                     NSSimulation(simulation, viewActor).start()
 
                                 }
@@ -80,12 +83,13 @@ class SimMapView : View("My View") {
         for (msg in channel) { // iterate over incoming messages
             when (msg) {
                 is Event.Vehicle.Created -> msg.occupiedNode.apply {
-                    putMarker()
+                    //                    putMarker()
                 }
                 is Event.Vehicle.Moved -> msg.occupiedNode.apply {
-                    println("lat = $x long = $y id= $id vehicle = ${vehicle.id.value}")
-                    map.moveMarker(markerMap[vehicle.id]!!, LatLong(x, y))
+                    //                    println("lat = $x long = $y id= $id vehicle = ${vehicle.id.value}")
+//                    map.moveMarker(markerMap[vehicle.id]!!, LatLong(x, y))
                 }
+                is Event.Simulation.StepDone -> println(msg)
             }
         }
 

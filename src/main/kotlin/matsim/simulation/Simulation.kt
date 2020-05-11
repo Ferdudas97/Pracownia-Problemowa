@@ -2,11 +2,11 @@ package matsim.simulation
 
 import kotlinx.coroutines.channels.SendChannel
 import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
 import matsim.model.*
 import matsim.simulation.events.Event
 import kotlin.math.min
+import kotlin.system.measureTimeMillis
 
 interface Simulation {
 
@@ -25,18 +25,20 @@ class NSSimulation(private val config: SimulationConfig, private val resultRecei
             val cars = createCars(config.carNumber)
             nodeList = cars + nodeList
             repeat(config.steps) { step ->
-                delay(500)
-                val result = nodeList.asFlow()
-                    .filterIsInstance<OccupiedNode>()
-                    .map { it.vehicle to createAnalyzableArea(it) }
-                    .map { it.first.move(it.second) }
-                    .buffer()
-                    .onEach { resultReceiverActor.send(Event.Vehicle.Moved(it)) }
-                    .toSet()
+                val ms = measureTimeMillis {
+                    val result = nodeList.asFlow()
+                        .filterIsInstance<OccupiedNode>()
+                        .map { it.vehicle to createAnalyzableArea(it) }
+                        .map { it.first.move(it.second) }
+                        .buffer()
+                        .onEach { resultReceiverActor.send(Event.Vehicle.Moved(it)) }
+                        .toSet()
 
-                nodeList = result + nodeList.filterIsInstance(OccupiedNode::class.java)
-                    .map(OccupiedNode::release) +
-                        nodeList.filterIsInstance(TrafficLightNode::class.java).map { it.changePhase(step) } + nodeList
+                    nodeList = result + nodeList.filterIsInstance(OccupiedNode::class.java)
+                        .map(OccupiedNode::release) +
+                            nodeList.filterIsInstance(TrafficLightNode::class.java).map { it.changePhase(step) } + nodeList
+                }
+                resultReceiverActor.send(Event.Simulation.StepDone(step, ms))
             }
         }
     }

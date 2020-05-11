@@ -219,9 +219,6 @@ class Connector {
                         }
                     }.distinct()
                 }
-                if (node.id.id.contains("6153083426") || new.isEmpty()) {
-                    println(1)
-                }
                 val connectorNode = ConnectorNode(new, node.x, node.y, node.maxSpeed, NodeId(), node.wayId)
                 Direction.values().filter { !node.neighborhood.containsKey(it) }
                     .forEach { node.neighborhood[it] = connectorNode }
