@@ -5,11 +5,11 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.channels.actor
-import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
-import matsim.model.Node
 import matsim.model.OccupiedNode
 import matsim.model.VehicleId
+import matsim.navigation.osrm.OrsmNavigationService
+import matsim.parser.NodeMapper
 import matsim.parser.OsmParser
 import matsim.simulation.NSSimulation
 import matsim.simulation.SimulationConfig
@@ -20,9 +20,11 @@ import kotlin.contracts.ExperimentalContracts
 @ExperimentalContracts
 class SimMapView : View("My View") {
     private val parser = OsmParser()
+    private val nodeMapper = NodeMapper()
     private val mapView = LeafletMapView()
     private val viewModel: SimViewModel by inject()
 
+    @ExperimentalStdlibApi
     override val root = borderpane() {
         val cfMapLoadState = mapView.displayMap(
             MapConfig(
@@ -51,17 +53,10 @@ class SimMapView : View("My View") {
                     action {
                         GlobalScope.launch(Dispatchers.Main) {
                             if (cfMapLoadState.isDone) {
-                                val nodes = parseNodes()
-//                                nodes
-//                                    .map { it.map { node -> LatLong(node.x, node.y) } }
-//                                    .collect { mapView.addTrack(it) }
-
-                                val nodesList = nodes.flatMapMerge { it.asFlow() }
-                                    .toList()
-                                val simulation = SimulationConfig(nodesList, 300, 25000)
                                 val viewActor = simulationViewActor(mapView)
                                 launch(Dispatchers.IO) {
-                                    NSSimulation(simulation, viewActor).start()
+                                    val config = createConfig()
+                                    NSSimulation(config, viewActor).start()
 
                                 }
                             }
@@ -74,6 +69,7 @@ class SimMapView : View("My View") {
     }
 
 
+    @UseExperimental(ExperimentalStdlibApi::class)
     private fun CoroutineScope.simulationViewActor(map: LeafletMapView) = actor<Event> {
         val markerMap = mutableMapOf<VehicleId, String>()
         fun OccupiedNode.putMarker() {
@@ -83,11 +79,11 @@ class SimMapView : View("My View") {
         for (msg in channel) { // iterate over incoming messages
             when (msg) {
                 is Event.Vehicle.Created -> msg.occupiedNode.apply {
-                    //                    putMarker()
+                    putMarker()
                 }
                 is Event.Vehicle.Moved -> msg.occupiedNode.apply {
-                    //                    println("lat = $x long = $y id= $id vehicle = ${vehicle.id.value}")
-//                    map.moveMarker(markerMap[vehicle.id]!!, LatLong(x, y))
+                    println("lat = $x long = $y id= $id vehicle = ${vehicle.id.value}")
+                    map.moveMarker(markerMap[vehicle.id]!!, LatLong(x, y))
                 }
                 is Event.Simulation.StepDone -> println(msg)
             }
@@ -96,11 +92,9 @@ class SimMapView : View("My View") {
     }
 
 
-    private fun parseNodes(): Flow<List<Node>> {
-        val list = parser.parse("/export.json")
-        return list.asFlow().flatMapMerge { it.lanes().asFlow() }.filter { it.isNotEmpty() }
-//            .onEach { delay(10) }
-            .buffer()
-            .flowOn(Dispatchers.Default)
+    private suspend fun createConfig(): SimulationConfig {
+        val osmWays = parser.parse("/export.json")
+        val nodes = nodeMapper.createSimulationWay(osmWays).flatMap { it.lanes() }.flatten()
+        return SimulationConfig(nodes, OrsmNavigationService(nodes), 3000, 1)
     }
 }

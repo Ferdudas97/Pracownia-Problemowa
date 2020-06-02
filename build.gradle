@@ -21,7 +21,10 @@ dependencies {
     implementation 'de.saring:leafletmap:1.0.5-SNAPSHOT'
     implementation 'no.tornado:tornadofx-controlsfx:0.1'
     implementation 'no.tornado:tornadofx:1.7.17'
-
+    implementation 'com.squareup.okhttp3:okhttp:3.12.0'
+    compile 'com.graphhopper:graphhopper-core:0.13.0'
+    compile 'com.squareup.retrofit2:converter-gson:2.6.1'
+    compile 'com.squareup.retrofit2:retrofit:2.6.1'
 }
 
 compileKotlin {

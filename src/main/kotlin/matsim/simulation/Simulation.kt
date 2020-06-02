@@ -15,6 +15,7 @@ interface Simulation {
 }
 
 
+@ExperimentalStdlibApi
 class NSSimulation(private val config: SimulationConfig, private val resultReceiverActor: SendChannel<Event>) :
     Simulation {
     lateinit var nodeList: Set<Node>
@@ -45,8 +46,17 @@ class NSSimulation(private val config: SimulationConfig, private val resultRecei
 
     private suspend fun createCars(number: Int): Set<OccupiedNode> = nodeList.shuffled()
         .asFlow()
+        .filter { it.osmId == "441241260" }
         .take(number)
-        .map { it.occupyBy(Vehicle(movementDirection = Direction.RIGHT, destination = nodeList.random())) }
+        .map {
+            val destination = nodeList.find { it.osmId == "278192366" }!!
+            it.occupyBy(
+                Vehicle(
+                    movementDirection = Direction.RIGHT,
+                    destination = destination, route = config.navigator.getRoute(it, destination).toMutableList()
+                )
+            )
+        }
         .onEach { resultReceiverActor.send(Event.Vehicle.Created(it)) }
         .toSet()
 
@@ -58,7 +68,7 @@ class NSSimulation(private val config: SimulationConfig, private val resultRecei
         val map = directions.associateWith {
             occupiedNode
                 .neighborhood[it]
-                ?.getNeighboursInDirection(areaSize) ?: emptyList()
+                ?.getNeighboursInDirection(areaSize, occupiedNode.vehicle.nextRoute()) ?: emptyList()
         }
         return AnalyzableArea(map, occupiedNode)
     }
