@@ -46,7 +46,7 @@ class NSSimulation(private val config: SimulationConfig, private val resultRecei
 
     private suspend fun createCars(number: Int): Set<OccupiedNode> = nodeList.shuffled()
         .asFlow()
-        .filter { it.osmId == "441241260" }
+        .filter { it.osmId == "4056134925" }
         .take(number)
         .map {
             val destination = nodeList.find { it.osmId == "278192366" }!!

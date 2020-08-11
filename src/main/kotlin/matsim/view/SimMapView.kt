@@ -11,7 +11,7 @@ import matsim.model.VehicleId
 import matsim.navigation.osrm.OrsmNavigationService
 import matsim.parser.NodeMapper
 import matsim.parser.OsmParser
-import matsim.simulation.NSSimulation
+import matsim.parser.graphToFile
 import matsim.simulation.SimulationConfig
 import matsim.simulation.events.Event
 import tornadofx.*
@@ -56,7 +56,7 @@ class SimMapView : View("My View") {
                                 val viewActor = simulationViewActor(mapView)
                                 launch(Dispatchers.IO) {
                                     val config = createConfig()
-                                    NSSimulation(config, viewActor).start()
+//                                    NSSimulation(config, viewActor).start()
 
                                 }
                             }
@@ -93,8 +93,10 @@ class SimMapView : View("My View") {
 
 
     private suspend fun createConfig(): SimulationConfig {
-        val osmWays = parser.parse("/export.json")
+        val osmWays = parser.parse("/export_small.json")
         val nodes = nodeMapper.createSimulationWay(osmWays).flatMap { it.lanes() }.flatten()
+        graphToFile(nodes)
+        println("koniec")
         return SimulationConfig(nodes, OrsmNavigationService(nodes), 3000, 1)
     }
 }

@@ -216,10 +216,21 @@ data class ConnectorNode(
         return super.toString()
     }
 
+    fun getAll() = nodes + neighborhood.values
+
     override fun getNextNode(destination: Node) = (nodes).filterNot { it is ConnectorNode }
         .filter { it.wayId == destination.wayId && it.osmId == destination.osmId }
         .minBy { it.neighborhood[Direction.RIGHT]?.computeDistance(destination) ?: Double.MAX_VALUE }
-        ?: (nodes).filterNot { it is ConnectorNode }.minBy { destination.computeDistance(it) }
+        ?: (nodes).filterNot { it is ConnectorNode }.groupBy {
+            it.neighborhood[Direction.RIGHT]?.computeDistance(
+                destination
+            ) ?: Double.MAX_VALUE
+        }
+            .toSortedMap().values.takeIf { it.isNotEmpty() }?.let {
+            val nodesWithMin = it.first()
+            if (nodesWithMin.size == 1) nodesWithMin.firstOrNull()
+            else nodesWithMin.minBy { it.getNextNode(destination).computeDistance(destination) }
+        }
         ?: baseNeighborhood[Direction.RIGHT]!!
 
 }
@@ -259,7 +270,7 @@ class Connector {
 //                }
 //            }
 //        } else {
-        if (connections.first().osmId == "288738490") {
+        if (connections.first().osmId == "1245992910") {
             println("")
         }
         val (leftNull, leftRest) = connections.partition { !it.neighborhood.containsKey(Direction.LEFT) }
